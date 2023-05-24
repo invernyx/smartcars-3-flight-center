@@ -1,0 +1,5 @@
+node_modules
+background/build
+core/build
+*.md
+tests

@@ -1,0 +1,21 @@
+{
+    "id": "com.tfdidesign.flight-center",
+    "name": "Flight Center",
+    "version": "0.10.0",
+    "type": "airline",
+    "description": "The flight booking system for smartCARS",
+    "availableSettings": {
+        "charter_flights": {
+            "name": "Allow Flight Chartering",
+            "description": "Allow pilots to create new single-use flights",
+            "type": "boolean",
+            "default": false
+        },
+        "enable_booking": {
+            "name": "Enable Flight Booking",
+            "description": "Allow pilots to search for and bid on flights",
+            "type": "boolean",
+            "default": true
+        }
+    }
+}
