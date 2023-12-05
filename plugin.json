@@ -1,7 +1,7 @@
 {
     "id": "com.tfdidesign.flight-center",
     "name": "Flight Center",
-    "version": "0.10.0",
+    "version": "1.0.5",
     "type": "airline",
     "description": "The flight booking system for smartCARS",
     "availableSettings": {
@@ -9,13 +9,29 @@
             "name": "Allow Flight Chartering",
             "description": "Allow pilots to create new single-use flights",
             "type": "boolean",
+            "settingType": "airline",
+            "default": false
+        },
+        "allow_any_aircraft_in_fleet": {
+            "name": "Allow Any Aircraft in Fleet",
+            "description": "Allow pilots to choose any aircraft in the fleet",
+            "type": "boolean",
+            "settingType": "airline",
             "default": false
         },
         "enable_booking": {
             "name": "Enable Flight Booking",
             "description": "Allow pilots to search for and bid on flights",
             "type": "boolean",
+            "settingType": "airline",
             "default": true
+        },
+        "allow_fleet_substitution": {
+            "name": "Allow Fleet Substitution",
+            "description": "Allow pilots to choose any aircraft in the fleet when no aircraft is available",
+            "type": "boolean",
+            "settingType": "airline",
+            "default": false
         }
     }
 }

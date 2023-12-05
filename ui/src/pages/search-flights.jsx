@@ -1,192 +1,16 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useLayoutEffect } from "react";
 import { Range, getTrackBackground } from "react-range";
-import { Link, useNavigate } from "react-router-dom";
-import { request, notify } from "@tfdidesign/smartcars3-ui-sdk";
-import { useEffect } from "react";
-import { GetAirport, GetAircraft, DecDurToStr } from "../helper.js";
+import { Link } from "react-router-dom";
+import { request, notify, localApi } from "@tfdidesign/smartcars3-ui-sdk";
+import { useEffect, useRef } from "react";
+import { GetAircraft } from "../helper.js";
 import Autocomplete from "../components/autocomplete";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLeft } from "@fortawesome/pro-solid-svg-icons";
+import Flight from "../components/flight";
+
 const baseUrl = "http://localhost:7172/api/com.tfdidesign.flight-center/";
-
-const FlightRow = (props) => {
-    const [aircraft, setAircraft] = useState(null);
-
-    const depApt = GetAirport(props.flight.departureAirport, props.airports);
-    const arrApt = GetAirport(props.flight.arrivalAirport, props.airports);
-
-    useEffect(() => {
-        if (!Array.isArray(props.flight.aircraft)) {
-            const res = GetAircraft(props.flight.aircraft, props.aircraft);
-
-            if (res) {
-                setAircraft(res);
-            }
-        }
-    }, [props.flight.aircraft, props.aircraft]);
-
-    if (!!!arrApt || !!!depApt) return <></>;
-
-    if (props.expanded) {
-        return (
-            <div className="grid grid-cols-10 items-center data-table-row p-3 mt-3 box-shadow select mx-8">
-                <div
-                    className="col-span-3 interactive"
-                    onClick={() => props.setExpandedFlight(null)}
-                >
-                    <h1>{props.flight.code + props.flight.number}</h1>
-                </div>
-                <div className="text-center">
-                    {props.flight.departureAirport}
-                </div>
-                <div className="text-center">{props.flight.arrivalAirport}</div>
-                <div className="text-center">
-                    {DecDurToStr(props.flight.flightTime)}
-                </div>
-                <div className="col-span-2 text-center">
-                    {aircraft && !Array.isArray(props.flight.aircraft) ? (
-                        `${aircraft.name}${
-                            aircraft.registration
-                                ? ` (${aircraft.registration})`
-                                : ""
-                        }`
-                    ) : (
-                        <div className="w-full">
-                            {props.flight.subfleets &&
-                            Array.isArray(props.flight.subfleets) &&
-                            props.flight.subfleets.length > 0 ? (
-                                <span>{props.flight.subfleets.join(", ")}</span>
-                            ) : (
-                                <span>
-                                    <i>No Aircraft available</i>
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="text-right col-span-2">
-                    <div
-                        className="button button-solid float-right ml-3 mb-1 mt-1"
-                        onClick={(e) => {
-                            props.bookFlight(props.flight.id);
-                            e.stopPropagation();
-                        }}
-                    >
-                        <span>Bid</span>
-                    </div>
-                </div>
-
-                <div className="col-span-3">
-                    {props.flight.type === "P" ? (
-                        <h3>Passenger Flight</h3>
-                    ) : props.flight.type === "C" ? (
-                        <h3>Cargo Flight</h3>
-                    ) : (
-                        <h3>Charter Flight</h3>
-                    )}
-                </div>
-                <div className="col-span-5"></div>
-                <div className="text-right col-span-2">
-                    {props.expiresSoon ? (
-                        <div className="bubble bubble-warning float-right">
-                            Expires Soon
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className="col-span-10">
-                    {props.flight.notes ? (
-                        <p className="mt-3">
-                            <i>{props.flight.notes}</i>
-                        </p>
-                    ) : null}
-                    <hr className="mt-3 mb-3" />
-                </div>
-
-                <div className="col-span-5">
-                    <h4 className="text-light">{depApt.name}</h4>
-                </div>
-                <div className="col-span-5 text-right">
-                    <h4>{arrApt.name}</h4>
-                </div>
-
-                <div className="col-span-5">
-                    <h2>{props.flight.departureTime}</h2>
-                </div>
-                <div className="col-span-5 text-right">
-                    <h2>{props.flight.arrivalTime}</h2>
-                </div>
-
-                <div className="col-span-5">
-                    <b>{parseInt(props.flight.distance)} nm</b>
-                </div>
-                <div className="col-span-5 text-right">
-                    <b>
-                        {props.flight.flightLevel > 0
-                            ? props.flight.flightLevel
-                            : "No Flight Level Given"}
-                    </b>
-                </div>
-            </div>
-        );
-    } else {
-        return (
-            <div
-                className="grid grid-cols-10 items-center data-table-row p-3 mt-3 select interactive-shadow mx-8"
-                onClick={() => props.setExpandedFlight(props.flight.id)}
-            >
-                <div className="col-span-3">
-                    {props.flight.code + props.flight.number}
-                </div>
-                <div className="text-center">
-                    {props.flight.departureAirport}
-                </div>
-                <div className="text-center">{props.flight.arrivalAirport}</div>
-                <div className="text-center">
-                    {DecDurToStr(props.flight.flightTime)}
-                </div>
-                <div
-                    className="text-center col-span-2"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                    }}
-                >
-                    {aircraft && !Array.isArray(props.flight.aircraft) ? (
-                        `${aircraft.name}${
-                            aircraft.registration
-                                ? ` (${aircraft.registration})`
-                                : ""
-                        }`
-                    ) : (
-                        <div className="w-full">
-                            {props.flight.subfleets &&
-                            Array.isArray(props.flight.subfleets) &&
-                            props.flight.subfleets.length > 0 ? (
-                                <span>{props.flight.subfleets.join(", ")}</span>
-                            ) : (
-                                <span>
-                                    <i>No Aircraft available</i>
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
-                <div className="text-right col-span-2">
-                    <div
-                        className="button button-solid float-right ml-3 mb-1 mt-1"
-                        onClick={(e) => {
-                            props.bookFlight(props.flight.id);
-                            e.stopPropagation();
-                        }}
-                    >
-                        <span>Bid</span>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-};
 
 const SearchFlightsContent = (props) => {
     const [depApt, setDepApt] = useState("");
@@ -195,13 +19,32 @@ const SearchFlightsContent = (props) => {
     const [aircraft, setAircraft] = useState("");
     const [durations, setDurations] = useState([0, 11]);
     const [distances, setDistances] = useState([0, 11]);
-    const navigate = useNavigate();
-
+    const [simBriefInstalled, setSimBriefInstalled] = useState(false);
     const [expandedFlight, setExpandedFlight] = useState(-1);
-
     const [flights, setFlights] = useState([]);
-
     const [sortParams, setSortParams] = useState(null);
+    const [width, setWidth] = useState(0);
+    const widthRef = useRef(null);
+
+    useEffect(() => {
+        isSimBriefInstalled();
+    }, []);
+
+    async function isSimBriefInstalled() {
+        try {
+            const plugins = await localApi("api/plugins/installed");
+
+            if (
+                !!plugins.find(
+                    (plugin) => plugin.id === "com.tfdidesign.simbrief",
+                )
+            ) {
+                setSimBriefInstalled(true);
+            }
+        } catch (error) {
+            setSimBriefInstalled(false);
+        }
+    }
 
     const sortBy = (by) => {
         let newParams = { by: by, direction: 1 };
@@ -233,12 +76,12 @@ const SearchFlightsContent = (props) => {
             if (depApt.length >= 3)
                 params.departure = depApt.substring(
                     0,
-                    Math.min(4, depApt.length)
+                    Math.min(4, depApt.length),
                 );
             if (arrApt.length >= 3)
                 params.arrival = arrApt.substring(
                     0,
-                    Math.min(4, arrApt.length)
+                    Math.min(4, arrApt.length),
                 );
             if (durations[0] > 0) params.minDur = durations[0];
             if (durations[1] < 11) params.maxDur = durations[1];
@@ -271,32 +114,33 @@ const SearchFlightsContent = (props) => {
         }
     };
 
-    const bookFlight = async (flight) => {
-        try {
-            await request({
-                url: `${baseUrl}book-flight`,
-                method: "POST",
-                data: {
-                    flightID: `${flight}`,
-                },
-            });
+    const updateWidth = () => {
+        if (!widthRef.current) return;
+        setWidth(widthRef.current.offsetWidth);
+    };
 
-            notify("com.tfdidesign.flight-center", null, null, {
-                message: "Flight booked successfully",
-                type: "success",
-            });
-            navigate("/");
-        } catch (error) {
-            notify("com.tfdidesign.flight-center", null, null, {
-                message: "Failed to book flight",
-                type: "danger",
-            });
-        }
+    const onWindowResize = () => {
+        setHeight("tblBody");
+        updateWidth();
     };
 
     useEffect(() => {
         getFlights();
     }, [depApt, arrApt, durations, distances, callsign, aircraft]);
+
+    useLayoutEffect(() => {
+        setHeight("tblBody");
+        updateWidth();
+    }, []);
+
+    useEffect(() => {
+        window.addEventListener("resize", onWindowResize);
+        onWindowResize();
+
+        return (_) => {
+            window.removeEventListener("resize", onWindowResize);
+        };
+    });
 
     const setHeight = (elID) => {
         const el = document.getElementById(elID);
@@ -307,23 +151,6 @@ const SearchFlightsContent = (props) => {
         const newHeight = viewHeight - elOffTop - marginBottom;
         el.style.height = newHeight + "px";
     };
-
-    const setBidsTblHeight = () => {
-        setHeight("tblBody");
-    };
-
-    useLayoutEffect(() => {
-        setHeight("tblBody");
-    }, []);
-
-    useEffect(() => {
-        window.addEventListener("resize", setBidsTblHeight);
-        setBidsTblHeight();
-
-        return (_) => {
-            window.removeEventListener("resize", setBidsTblHeight);
-        };
-    });
 
     const sortedFlights = flights !== null ? [...flights] : [];
     if (sortParams !== null) {
@@ -339,6 +166,10 @@ const SearchFlightsContent = (props) => {
                 case "departure":
                     left = a.departureAirport;
                     right = b.departureAirport;
+                    break;
+                case "departureTime":
+                    left = a.departureTime;
+                    right = b.departureTime;
                     break;
                 case "arrival":
                     left = a.arrivalAirport;
@@ -591,9 +422,12 @@ const SearchFlightsContent = (props) => {
                 </h4>
             </div>
 
-            <div className="grid grid-cols-10 data-table-header p-3 mt-3 mx-8">
+            <div
+                ref={widthRef}
+                className="grid grid-cols-10 data-table-header p-3 mt-3 mx-8"
+            >
                 <div
-                    className="col-span-3 interactive"
+                    className="col-span-2 interactive"
                     onClick={() => {
                         sortBy("callsign");
                     }}
@@ -601,7 +435,7 @@ const SearchFlightsContent = (props) => {
                     Callsign {getSortingSymbol("callsign")}
                 </div>
                 <div
-                    className="text-center interactive"
+                    className="text-left interactive"
                     onClick={() => {
                         sortBy("departure");
                     }}
@@ -609,7 +443,7 @@ const SearchFlightsContent = (props) => {
                     Departure {getSortingSymbol("departure")}
                 </div>
                 <div
-                    className="text-center interactive"
+                    className="text-left interactive"
                     onClick={() => {
                         sortBy("arrival");
                     }}
@@ -617,7 +451,15 @@ const SearchFlightsContent = (props) => {
                     Arrival {getSortingSymbol("arrival")}
                 </div>
                 <div
-                    className="text-center interactive"
+                    className="text-left interactive"
+                    onClick={() => {
+                        sortBy("departureTime");
+                    }}
+                >
+                    Schedule {getSortingSymbol("departureTime")}
+                </div>
+                <div
+                    className="text-left interactive"
                     onClick={() => {
                         sortBy("duration");
                     }}
@@ -625,7 +467,7 @@ const SearchFlightsContent = (props) => {
                     Duration {getSortingSymbol("duration")}
                 </div>
                 <div
-                    className="text-center interactive col-span-2"
+                    className="text-left interactive col-span-2"
                     onClick={() => {
                         sortBy("aircraft");
                     }}
@@ -635,23 +477,33 @@ const SearchFlightsContent = (props) => {
                 <div className="text-right col-span-2"></div>
             </div>
 
-            <div id="tblBody" className="overflow-y-auto">
-                {sortedFlights.length > 0 ? (
-                    sortedFlights.map((flight) => {
-                        return (
-                            <FlightRow
+            <div id="tblBody" className="overflow-y-auto pl-8">
+                {props.aircraft.length > 0 && sortedFlights.length > 0 ? (
+                    sortedFlights.map((flight) => (
+                        <div style={{ width: `${width}px` }}>
+                            <Flight
                                 key={flight.id}
                                 airports={props.airports}
                                 aircraft={props.aircraft}
                                 setExpandedFlight={setExpandedFlight}
                                 expanded={expandedFlight === flight.id}
-                                flight={flight}
-                                bookFlight={bookFlight}
+                                flight={
+                                    props.pluginSettings
+                                        ?.allow_any_aircraft_in_fleet
+                                        ? {
+                                              ...flight,
+                                              aircraft: [],
+                                              defaultAircraft: flight.aircraft,
+                                          }
+                                        : flight
+                                }
+                                simBriefInstalled={simBriefInstalled}
+                                currentFlightData={props.currentFlightData}
                             />
-                        );
-                    })
+                        </div>
+                    ))
                 ) : (
-                    <div className="data-table-row p-3 mx-8 mt-3">
+                    <div className="data-table-row p-3 mt-3 mr-8">
                         No flights matching the search parameters were found.
                     </div>
                 )}
@@ -660,9 +512,13 @@ const SearchFlightsContent = (props) => {
     );
 };
 
-const SearchFlights = () => {
+const SearchFlights = ({ identity, currentFlightData }) => {
     const [airports, setAirports] = useState([]);
     const [aircraft, setAircraft] = useState([]);
+
+    const pluginData = identity?.airline?.plugins?.find(
+        (p) => p.id === "com.tfdidesign.flight-center",
+    );
 
     const getAirports = async () => {
         try {
@@ -702,7 +558,14 @@ const SearchFlights = () => {
         getAircraft();
     }, []);
 
-    return <SearchFlightsContent airports={airports} aircraft={aircraft} />;
+    return (
+        <SearchFlightsContent
+            airports={airports}
+            aircraft={aircraft}
+            pluginSettings={pluginData?.appliedSettings}
+            currentFlightData={currentFlightData}
+        />
+    );
 };
 
 export default SearchFlights;

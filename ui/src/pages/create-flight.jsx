@@ -1,17 +1,16 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { request, notify } from "@tfdidesign/smartcars3-ui-sdk";
+import { request, notify, localApi } from "@tfdidesign/smartcars3-ui-sdk";
 import { useEffect } from "react";
 import Loading from "../components/loading";
 import Autocomplete from "../components/autocomplete";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLeft } from "@fortawesome/pro-solid-svg-icons";
 
-//import { GetAirport, GetAircraft, DecDurToStr } from "../helper.js";
 const baseUrl = "http://localhost:7172/api/com.tfdidesign.flight-center/";
 
-const CreateFlightContents = ({ airportsList, aircrafts }) => {
+const CreateFlightContents = ({ airportsList, aircrafts, identity }) => {
     const [isLoading, setIsLoading] = useState(false);
     const [airports, setAirports] = useState([]);
 
@@ -26,21 +25,41 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
     const [arrHour, setArrHour] = useState("");
     const [arrMin, setArrMin] = useState("");
     const [route, setRoute] = useState("");
+    const [simBriefInstalled, setSimBriefInstalled] = useState(false);
+    const [settings, setSettings] = useState(null);
     const navigate = useNavigate();
 
     useEffect(() => {
         const list = airportsList.map(
-            (airport) => `${airport.code} - ${airport.name}`
+            (airport) => `${airport.code} - ${airport.name}`,
         );
 
         setAirports(list);
+        isSimBriefInstalled();
+        getSettings();
     }, [airportsList]);
+
+    async function isSimBriefInstalled() {
+        try {
+            const plugins = await localApi("api/plugins/installed");
+
+            if (
+                !!plugins.find(
+                    (plugin) => plugin.id === "com.tfdidesign.simbrief",
+                )
+            ) {
+                setSimBriefInstalled(true);
+            }
+        } catch (error) {
+            setSimBriefInstalled(false);
+        }
+    }
 
     async function createFlight() {
         setIsLoading(true);
         try {
-            const depCode = depApt.slice(0, 4).toUpperCase();
-            const arrCode = arrApt.slice(0, 4).toUpperCase();
+            const depCode = depApt.slice(0, 4).toUpperCase().trim();
+            const arrCode = arrApt.slice(0, 4).toUpperCase().trim();
 
             const formatNum = (num) => `${num.toString().padStart(2, "0")}`;
 
@@ -74,6 +93,76 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
         }
 
         setIsLoading(false);
+    }
+
+    async function getSettings() {
+        try {
+            const response = await request({
+                url: "http://localhost:7172/api/settings",
+                method: "GET",
+            });
+
+            setSettings(response);
+        } catch (error) {}
+    }
+
+    async function loadFromSimBrief() {
+        if (!simBriefInstalled) return;
+
+        if (
+            !settings ||
+            !settings["com.tfdidesign.simbrief"] ||
+            !settings["com.tfdidesign.simbrief"].simbriefUsername
+        ) {
+            notify("com.tfdidesign.flight-center", null, null, {
+                message: "SimBrief username not set",
+                type: "danger",
+            });
+            return;
+        }
+
+        const response = await localApi(
+            "api/com.tfdidesign.simbrief/fetchplan",
+            "POST",
+            {
+                simBriefUsername:
+                    settings["com.tfdidesign.simbrief"].simbriefUsername,
+            },
+        );
+
+        setDepApt(response.flightPlan.origin.icao_code);
+        setArrApt(response.flightPlan.destination.icao_code);
+        setCallsign(
+            response.flightPlan.general.icao_airline +
+                response.flightPlan.general.flight_number,
+        );
+        setFlightType(
+            Number(response.flightPlan.general.passengers) > 0 ? "P" : "C",
+        );
+        setCruiseAlt(response.flightPlan.general.initial_altitude);
+        setRoute(
+            `${response.flightPlan.origin.icao_code} ${response.flightPlan.general.route} ${response.flightPlan.destination.icao_code}`,
+        );
+        setDepHour(
+            ((Number(response.flightPlan.times.est_out) % 86400) -
+                (Number(response.flightPlan.times.est_out) % 3600)) /
+                3600,
+        );
+        setDepMin(
+            ((Number(response.flightPlan.times.est_out) % 3600) -
+                (Number(response.flightPlan.times.est_out) % 60)) /
+                60,
+        );
+        setArrHour(
+            ((Number(response.flightPlan.times.est_in) % 86400) -
+                (Number(response.flightPlan.times.est_in) % 3600)) /
+                3600,
+        );
+        setArrMin(
+            ((Number(response.flightPlan.times.est_in) % 3600) -
+                (Number(response.flightPlan.times.est_in) % 60)) /
+                60,
+        );
     }
 
     if (!airportsList || !aircrafts) return <></>;
@@ -138,7 +227,7 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                                     setAircraft(e.target.value);
                                 }}
                             >
-                                <option value="">Any Aircraft</option>
+                                <option value="">Select Aircraft</option>
                                 {aircrafts.map((ac) => {
                                     return (
                                         <option key={ac.id} value={ac.id}>
@@ -200,6 +289,8 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                             type="number"
                             placeholder="HH"
                             value={depHour}
+                            min={0}
+                            max={23}
                             required
                             onChange={(e) => {
                                 setDepHour(e.target.value);
@@ -211,6 +302,8 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                             className="md:mr-1"
                             placeholder="MM"
                             value={depMin}
+                            min={0}
+                            max={59}
                             required
                             onChange={(e) => {
                                 setDepMin(e.target.value);
@@ -235,6 +328,8 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                             type="number"
                             placeholder="HH"
                             value={arrHour}
+                            min={0}
+                            max={23}
                             required
                             onChange={(e) => {
                                 setArrHour(e.target.value);
@@ -245,6 +340,8 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                             type="number"
                             placeholder="MM"
                             value={arrMin}
+                            min={0}
+                            max={59}
                             required
                             onChange={(e) => {
                                 setArrMin(e.target.value);
@@ -265,17 +362,42 @@ const CreateFlightContents = ({ airportsList, aircrafts }) => {
                 </div>
             </div>
 
-            <input
-                type="submit"
-                className="button button-solid float-right ml-3 mt-3"
-                value="CREATE"
-            />
+            {identity?.airline?.id === -1 ? (
+                <input
+                    onClick={() => {
+                        localApi("api/navigate", "POST", {
+                            pluginID: "com.tfdidesign.fleet-manager",
+                            payloadString: "new",
+                        });
+                    }}
+                    type="button"
+                    className="button button-solid float-left mr-3 mt-3"
+                    value="ADD AIRCRAFT"
+                />
+            ) : null}
+
+            <div className="float-right flex ml-3 mt-3">
+                {simBriefInstalled && (
+                    <input
+                        type="button"
+                        className="button button-solid mr-3"
+                        value="Import from SimBrief"
+                        onClick={loadFromSimBrief}
+                    />
+                )}
+
+                <input
+                    type="submit"
+                    className="button button-solid"
+                    value="Create"
+                />
+            </div>
             {isLoading ? <Loading /> : null}
         </form>
     );
 };
 
-const CreateFlight = () => {
+const CreateFlight = ({ identity }) => {
     const [airports, setAirports] = useState([]);
     const [aircraft, setAircraft] = useState([]);
 
@@ -318,7 +440,11 @@ const CreateFlight = () => {
     }, []);
 
     return (
-        <CreateFlightContents airportsList={airports} aircrafts={aircraft} />
+        <CreateFlightContents
+            airportsList={airports}
+            aircrafts={aircraft}
+            identity={identity}
+        />
     );
 };
 

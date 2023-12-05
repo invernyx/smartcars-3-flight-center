@@ -2,6 +2,7 @@ const axios = __non_webpack_require__("axios");
 const { log } = require("@tfdidesign/smartcars3-background-sdk");
 
 let scIdentity = null;
+let config = null;
 let cache = {
     flights: {},
     airports: {},
@@ -10,7 +11,13 @@ let cache = {
 };
 
 const getCache = (endpoint, key, req) => {
-    if (req && req.query && req.query.nocache == "true") return null;
+    if (
+        req &&
+        req.query &&
+        (req.query.nocache == "true" || req.query.nocache == true)
+    ) {
+        return null;
+    }
 
     const entry = cache[endpoint][key];
 
@@ -31,8 +38,8 @@ const storeCache = (endpoint, key, data) => {
     };
 };
 
-const getAirports = async () => {
-    const entry = getCache("airports", "data");
+const getAirports = async (req) => {
+    const entry = getCache("airports", "data", req);
 
     if (!!entry) {
         return entry;
@@ -50,8 +57,8 @@ const getAirports = async () => {
     return response.data;
 };
 
-const getAircrafts = async () => {
-    const entry = getCache("aircrafts", "data");
+const getAircrafts = async (req) => {
+    const entry = getCache("aircrafts", "data", req);
 
     if (!!entry) {
         return entry;
@@ -70,8 +77,18 @@ const getAircrafts = async () => {
 };
 
 module.exports = {
-    onStart: (identity) => {
+    onStart: async (identity) => {
         scIdentity = identity;
+
+        try {
+            const res = await axios.get("http://localhost:7172/api/config");
+            config = res.data.config;
+
+            await getAirports(null);
+            await getAircrafts(null);
+        } catch (err) {
+            log("Error while getting config", "error", err);
+        }
     },
     routes: {
         get: {
@@ -92,7 +109,7 @@ module.exports = {
                     const entry = getCache(
                         "flights",
                         `${departure}-${arrival}-${minDist}-${maxDist}-${minDur}-${maxDur}-${callsign}-${aircraft}`,
-                        req
+                        req,
                     );
 
                     if (entry) {
@@ -138,7 +155,7 @@ module.exports = {
                         storeCache(
                             "flights",
                             `${departure}-${arrival}-${minDist}-${maxDist}-${minDur}-${maxDur}-${callsign}-${aircraft}`,
-                            response.data
+                            response.data,
                         );
 
                         return res.json(response.data);
@@ -179,7 +196,7 @@ module.exports = {
                 description: "Endpoint to list airports",
                 handler: async (req, res) => {
                     try {
-                        const airports = await getAirports();
+                        const airports = await getAirports(req);
 
                         return res.json(airports);
                     } catch (error) {
@@ -192,17 +209,84 @@ module.exports = {
                 description: "Endpoint to list aircrafts",
                 handler: async (req, res) => {
                     try {
-                        const aircraft = await getAircrafts();
+                        const aircraft = await getAircrafts(req);
 
                         return res.json(aircraft);
                     } catch (error) {
                         log(
                             "Error while getting aircraft list",
                             "error",
-                            error
+                            error,
                         );
                         return res.status(500).json({});
                     }
+                },
+            },
+            recover: {
+                description: "Find the data of a flight to recover",
+                handler: async (req, res) => {
+                    if (!config) {
+                        return res.status(404).json({});
+                    }
+                    if (
+                        !scIdentity ||
+                        !scIdentity.tfdi_design_user ||
+                        !scIdentity.tfdi_design_user.id ||
+                        !scIdentity.tfdi_design_user.hasPremium
+                    ) {
+                        return res.status(404).json({});
+                    }
+
+                    try {
+                        const recoveryFlight = await axios.post(
+                            `${config.privateAPI}flight/recover`,
+                            {
+                                userID: scIdentity.tfdi_design_user.id,
+                                token: scIdentity.tfdi_design_user.token,
+                            },
+                        );
+
+                        if (recoveryFlight.data) {
+                            return res.json(recoveryFlight.data);
+                        }
+                    } catch (error) {
+                        // Ignore errors
+                    }
+                    return res.status(404).json({});
+                },
+            },
+            recoverable: {
+                description:
+                    "Find if there is a Pro flight that can be recovered",
+                handler: async (req, res) => {
+                    if (!config) {
+                        return res.status(404).json({});
+                    }
+                    if (
+                        !scIdentity ||
+                        !scIdentity.tfdi_design_user ||
+                        !scIdentity.tfdi_design_user.id ||
+                        !scIdentity.tfdi_design_user.hasPremium
+                    ) {
+                        return res.status(404).json({});
+                    }
+
+                    try {
+                        const recoveryFlight = await axios.post(
+                            `${config.privateAPI}flight/recoverable`,
+                            {
+                                userID: scIdentity.tfdi_design_user.id,
+                                token: scIdentity.tfdi_design_user.token,
+                            },
+                        );
+
+                        if (recoveryFlight.data) {
+                            return res.json(recoveryFlight.data);
+                        }
+                    } catch (error) {
+                        // Ignore errors
+                    }
+                    return res.status(404).json({});
                 },
             },
         },

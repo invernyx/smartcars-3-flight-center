@@ -1,11 +1,12 @@
 function GetAirport(airportCode, airports) {
-    return airports.find((airport) => airport.code === airportCode) || null;
+    let code = airportCode.trim();
+    return airports.find((airport) => airport.code === code) || null;
 }
 
 function GetAircraft(aircraftID, aircrafts) {
     return (
         aircrafts.find(
-            (aircraft) => Number(aircraft.id) === Number(aircraftID)
+            (aircraft) => Number(aircraft.id) === Number(aircraftID),
         ) || null
     );
 }
@@ -22,7 +23,7 @@ function GetAirportName(airportCode, airports) {
 
 function GetAircraftName(aircraftID, aircrafts) {
     const aircraft = aircrafts.find(
-        (aircraft) => Number(aircraft.id) === Number(aircraftID)
+        (aircraft) => Number(aircraft.id) === Number(aircraftID),
     );
 
     if (!aircraft) {
@@ -46,17 +47,9 @@ function DecDurToStr(dec) {
     hours = parseInt(hours);
     mins = parseInt(mins);
 
-    let result = "";
-    if (hours > 0) {
-        result += hours + "h";
-    }
-
-    if (mins > 0) {
-        if (result !== "") result += " ";
-        result += mins + "m";
-    }
-
-    return result;
+    return `${hours.toString().padStart(2, "0")}h ${mins
+        .toString()
+        .padStart(2, "0")}m`;
 }
 
 export {

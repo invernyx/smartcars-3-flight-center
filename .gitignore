@@ -107,4 +107,5 @@ out/
 
 # production
 ui/build/
+ui/.npmrc
 background/build/

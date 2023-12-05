@@ -1,12 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import {
-    request,
-    notify,
-    applyAppColor,
-    applyVAColor,
-} from "@tfdidesign/smartcars3-ui-sdk";
+import { request, notify, localApi } from "@tfdidesign/smartcars3-ui-sdk";
 import SearchFlights from "./pages/search-flights";
 import FlightCenter from "./pages/flight-center";
 import CreateFlight from "./pages/create-flight";
@@ -15,17 +10,58 @@ import Loading from "./components/loading";
 function MainApp() {
     const [isLoading, setIsLoading] = useState(false);
     const [identity, setIdentity] = useState({});
-    const urlParams = new URLSearchParams(window.location.search);
-    const darkmode = urlParams.get("darkmode") === "true";
-    const foreColor = urlParams.get("forecolor");
-    const backColor = urlParams.get("backcolor");
-
-    applyAppColor(document, darkmode);
-    applyVAColor(document, foreColor, backColor);
+    const [flightTrackingInstalled, setflightTrackingInstalled] =
+        useState(false);
+    const [currentFlightData, setCurrentFlightData] = useState(null);
+    const [flightDataInterval, setFlightDataInterval] = useState(null);
 
     useEffect(() => {
         getIdentity();
+        isFlightTrackingInstalled();
     }, []);
+
+    useEffect(() => {
+        if (flightTrackingInstalled && !flightDataInterval) {
+            getCurrentFlightData();
+            const id = setInterval(() => {
+                getCurrentFlightData();
+            }, 5000);
+            setFlightDataInterval(id);
+        }
+        return () => {
+            if (flightDataInterval) {
+                clearInterval(flightDataInterval);
+            }
+        };
+    }, [flightTrackingInstalled]);
+
+    async function getCurrentFlightData() {
+        const response = await localApi(
+            "api/com.tfdidesign.flight-tracking/data",
+        );
+
+        if (!response.bidID) {
+            setCurrentFlightData(null);
+        } else {
+            setCurrentFlightData(response);
+        }
+    }
+
+    async function isFlightTrackingInstalled() {
+        try {
+            const plugins = await localApi("api/plugins/installed");
+
+            if (
+                !!plugins.find(
+                    (plugin) => plugin.id === "com.tfdidesign.flight-tracking",
+                )
+            ) {
+                setflightTrackingInstalled(true);
+            }
+        } catch (error) {
+            setflightTrackingInstalled(false);
+        }
+    }
 
     async function getIdentity() {
         setIsLoading(true);
@@ -48,7 +84,7 @@ function MainApp() {
     if (isLoading) return <Loading />;
 
     const pluginData = identity?.airline?.plugins?.find(
-        (p) => p.id === "com.tfdidesign.flight-center"
+        (p) => p.id === "com.tfdidesign.flight-center",
     );
     const charterFlights =
         pluginData?.appliedSettings?.charter_flights === true;
@@ -56,12 +92,23 @@ function MainApp() {
 
     return (
         <Routes>
-            <Route path="/" element={<FlightCenter identity={identity} />} />
+            <Route
+                path="/"
+                element={
+                    <FlightCenter
+                        identity={identity}
+                        currentFlightData={currentFlightData}
+                    />
+                }
+            />
             <Route
                 path="/search-flights/"
                 element={
                     enableBooking ? (
-                        <SearchFlights identity={identity} />
+                        <SearchFlights
+                            identity={identity}
+                            currentFlightData={currentFlightData}
+                        />
                     ) : (
                         <Navigate to="/" />
                     )
